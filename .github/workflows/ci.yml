@@ -51,6 +51,23 @@ jobs:
       - name: Validate configuration
         run: terraform -chdir=terraform validate
 
+  tflint:
+    name: Lint Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --chdir=terraform
+
   docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
