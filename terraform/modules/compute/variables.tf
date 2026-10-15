@@ -1,0 +1,8 @@
+variable "app_name" { type = string }
+variable "public_subnet_ids" { type = list(string) }
+variable "ecs_security_group" { type = string }
+variable "execution_role_arn" { type = string }
+variable "deploy_service" { type = bool }
+variable "image_tag" { type = string }
+variable "alb_security_group" { type = string }
+variable "vpc_id" { type = string }
