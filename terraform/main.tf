@@ -19,6 +19,7 @@ module "compute" {
   vpc_id             = module.networking.vpc_id
   deploy_service     = var.deploy_service
   image_tag          = var.image_tag
+  enable_alb         = var.enable_alb
 }
 
 module "monitoring" {

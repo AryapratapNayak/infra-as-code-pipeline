@@ -1,3 +1,4 @@
+
 resource "aws_ecr_repository" "app" {
   name                 = "${var.app_name}-app"
   image_tag_mutability = "MUTABLE"
@@ -20,6 +21,8 @@ resource "aws_cloudwatch_log_group" "app" {
 }
 
 resource "aws_lb" "app" {
+  count = var.enable_alb ? 1 : 0
+
   name               = "${var.app_name}-alb"
   internal           = false
   load_balancer_type = "application"
@@ -30,6 +33,8 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
+  count = var.enable_alb ? 1 : 0
+
   name        = "${var.app_name}-tg"
   port        = 5000
   protocol    = "HTTP"
@@ -48,18 +53,23 @@ resource "aws_lb_target_group" "app" {
 }
 
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.app.arn
+  count = var.enable_alb ? 1 : 0
+
+  load_balancer_arn = aws_lb.app[0].arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
+    target_group_arn = aws_lb_target_group.app[0].arn
   }
 }
 
+data "aws_region" "current" {}
+
 resource "aws_ecs_task_definition" "app" {
-  count                    = var.deploy_service ? 1 : 0
+  count = var.deploy_service && var.enable_alb ? 1 : 0
+
   family                   = "${var.app_name}-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -71,11 +81,13 @@ resource "aws_ecs_task_definition" "app" {
     name      = "app"
     image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
     essential = true
+
     portMappings = [{
       containerPort = 5000
       hostPort      = 5000
       protocol      = "tcp"
     }]
+
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -84,6 +96,7 @@ resource "aws_ecs_task_definition" "app" {
         awslogs-stream-prefix = "app"
       }
     }
+
     healthCheck = {
       command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\" || exit 1"]
       interval    = 30
@@ -94,10 +107,9 @@ resource "aws_ecs_task_definition" "app" {
   }])
 }
 
-data "aws_region" "current" {}
-
 resource "aws_ecs_service" "app" {
-  count           = var.deploy_service ? 1 : 0
+  count = var.deploy_service && var.enable_alb ? 1 : 0
+
   name            = "${var.app_name}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app[0].arn
@@ -120,7 +132,7 @@ resource "aws_ecs_service" "app" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.app.arn
+    target_group_arn = aws_lb_target_group.app[0].arn
     container_name   = "app"
     container_port   = 5000
   }
@@ -129,7 +141,8 @@ resource "aws_ecs_service" "app" {
 }
 
 resource "aws_appautoscaling_target" "ecs" {
-  count              = var.deploy_service ? 1 : 0
+  count = var.deploy_service && var.enable_alb ? 1 : 0
+
   max_capacity       = 6
   min_capacity       = 2
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app[0].name}"
@@ -138,7 +151,8 @@ resource "aws_appautoscaling_target" "ecs" {
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
-  count              = var.deploy_service ? 1 : 0
+  count = var.deploy_service && var.enable_alb ? 1 : 0
+
   name               = "${var.app_name}-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs[0].resource_id

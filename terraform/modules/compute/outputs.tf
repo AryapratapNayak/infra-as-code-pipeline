@@ -3,7 +3,7 @@ output "ecr_repository_url" {
 }
 
 output "load_balancer_url" {
-  value = "http://${aws_lb.app.dns_name}"
+  value = var.enable_alb ? "http://${aws_lb.app[0].dns_name}" : ""
 }
 
 output "cluster_name" {

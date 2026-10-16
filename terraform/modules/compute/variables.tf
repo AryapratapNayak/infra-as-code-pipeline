@@ -6,3 +6,4 @@ variable "deploy_service" { type = bool }
 variable "image_tag" { type = string }
 variable "alb_security_group" { type = string }
 variable "vpc_id" { type = string }
+variable "enable_alb" { type = bool }
